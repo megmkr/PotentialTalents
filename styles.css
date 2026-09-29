@@ -171,7 +171,9 @@ h2 {
    gap: 12px;
 }
 .candidate {
-   display: block;
+   display: flex;
+   align-items: center;
+
    padding: 19px 20px;
    border: 1px solid var(--line);
    border-radius: 14px;
@@ -189,6 +191,7 @@ h2 {
    margin: 0 0 7px;
    font-size: 1.3rem;
    letter-spacing: -0.02em;
+   color: var(--accent-dark);
 }
 .candidate p {
    margin: 0;
@@ -206,6 +209,7 @@ h2 {
 }
 .star-button {
    display: inline-grid;
+   margin-left: auto;
    flex: 0 0 auto;
    width: 30px;
    min-width: 30px;

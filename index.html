@@ -3,7 +3,6 @@
    <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <meta name="description" content="Search and rank potential talent by skills." />
       <title>Potential Talents</title>
       <link rel="stylesheet" href="styles.css" />
    </head>
@@ -12,14 +11,17 @@
          <section class="app" aria-labelledby="page-title">
             <header>
                <p class="eyebrow">Potential talent</p>
-               <h1 id="page-title">Find the right people, <span class="rubik-glitch-regular">faster.</span></h1>
-               <p class="intro">Let our candidate finder help you quickly identify the best talent for the job. Star candidates to see similar results.</p>
+               <h1 id="page-title">Find the right people, <span class="rubik-glitch-regular" style="color: var(--accent-dark)">faster.</span></h1>
+               <p class="intro">
+                  Let our candidate finder help you quickly identify the best talent for the job. <br />
+                  Star candidates to see similar results.
+               </p>
             </header>
 
             <section class="search-panel" aria-label="Candidate search">
                <label for="search-input">Search candidates</label>
                <div class="search-row">
-                  <input id="search-input" type="search" value="Python" placeholder="Search by location or job title" autocomplete="off" />
+                  <input id="search-input" type="search" placeholder="Try Student, HR, or Communications..." autocomplete="off" />
                </div>
             </section>
 
@@ -31,129 +33,6 @@
          </section>
       </main>
 
-      <script>
-         let candidates = [];
-         const starredNames = new Set();
-         const searchInput = document.querySelector("#search-input");
-         const candidateList = document.querySelector("#candidate-list");
-         const resultCount = document.querySelector("#result-count");
-
-         function parseCsv(text) {
-            const rows = [];
-            let row = [];
-            let value = "";
-            let quoted = false;
-
-            for (let index = 0; index < text.length; index += 1) {
-               const character = text[index];
-               const nextCharacter = text[index + 1];
-               if (character === '"' && quoted && nextCharacter === '"') {
-                  value += '"';
-                  index += 1;
-               } else if (character === '"') {
-                  quoted = !quoted;
-               } else if (character === "," && !quoted) {
-                  row.push(value.trim());
-                  value = "";
-               } else if ((character === "\n" || character === "\r") && !quoted) {
-                  if (character === "\r" && nextCharacter === "\n") index += 1;
-                  row.push(value.trim());
-                  if (row.some(Boolean)) rows.push(row);
-                  row = [];
-                  value = "";
-               } else {
-                  value += character;
-               }
-            }
-            if (value || row.length) {
-               row.push(value.trim());
-               rows.push(row);
-            }
-
-            const headers = rows.shift().map((header) => header.trim());
-            return rows
-               .map((values, index) => Object.fromEntries(headers.map((header, column) => [header, values[column] || ""])))
-               .map((row, index) => ({
-                  name: row.name || row.full_name || `Candidate ${index + 1}`,
-                  jobTitle: row.job_title_clean || "Job title unavailable",
-                  location: row.location_clean || "Location unavailable",
-                  connections: row.connection_clean || "0",
-               }));
-         }
-
-         function escapeHtml(value) {
-            return String(value).replace(
-               /[&<>"']/g,
-               (character) =>
-                  ({
-                     "&": "&amp;",
-                     "<": "&lt;",
-                     ">": "&gt;",
-                     '"': "&quot;",
-                     "'": "&#039;",
-                  })[character],
-            );
-         }
-
-         function rankCandidates(query) {
-            const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-            return candidates
-               .map((candidate) => {
-                  const searchableText = `${candidate.name} ${candidate.jobTitle} ${candidate.location}`.toLowerCase();
-                  const matchScore = terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0);
-                  const isStarred = starredNames.has(candidate.name);
-                  return { ...candidate, isStarred, score: matchScore + (isStarred ? 100 : 0) };
-               })
-               .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-         }
-
-         function renderCandidates() {
-            const ranking = rankCandidates(searchInput.value);
-            resultCount.textContent = `${ranking.length} candidates · ${starredNames.size} starred`;
-            candidateList.innerHTML =
-               ranking
-                  .map(
-                     (candidate, index) => `
-            <article class="candidate${candidate.isStarred ? " starred" : ""}">
-               <div>
-                  <h3>
-                     <button class="star-button${candidate.isStarred ? " starred" : ""}" type="button" data-name="${candidate.name}" aria-label="${candidate.isStarred ? "Unstar" : "Star"} ${candidate.name}" title="${candidate.isStarred ? "Unstar" : "Star"} ${candidate.name}">
-                        ${candidate.isStarred ? "★" : "☆"}
-                     </button>
-                     <span>${index + 1}. ${candidate.name}</span>
-                  </h3>
-                  <p>${escapeHtml(candidate.jobTitle)}</p>
-                  <p>${escapeHtml(candidate.location)} · ${escapeHtml(candidate.connections)} connections<span class="score">Score ${candidate.score}</span></p>
-               </div>
-            </article>
-         `,
-                  )
-                  .join("") || '<p class="empty">No candidates match that search.</p>';
-         }
-
-         searchInput.addEventListener("input", renderCandidates);
-
-         candidateList.addEventListener("click", (event) => {
-            const button = event.target.closest("button[data-name]");
-            if (!button) return;
-            const name = button.dataset.name;
-            starredNames.has(name) ? starredNames.delete(name) : starredNames.add(name);
-            renderCandidates();
-         });
-         candidateList.innerHTML = '<p class="empty">Loading candidates...</p>';
-         fetch("data/processed/cleaned_data.csv")
-            .then((response) => {
-               if (!response.ok) throw new Error(`Could not load candidate data: ${response.status}`);
-               return response.text();
-            })
-            .then((csv) => {
-               candidates = parseCsv(csv);
-               renderCandidates();
-            })
-            .catch((error) => {
-               resultCount.textContent = "";
-               candidateList.innerHTML = `<p class="empty">${escapeHtml(error.message)}. Make sure cleaned_data copy.csv is deployed beside index.html.</p>`;
-            });
-      </script>
+      <script type="module" src="script.js"></script>
    </body>
 </html>
